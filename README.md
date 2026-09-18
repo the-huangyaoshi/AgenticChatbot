@@ -1,47 +1,46 @@
-# 🤖 LangGraph Agentic AI Chatbot
+# LangGraph Agentic AI Chatbot
 
-An intelligent, multi-agent chatbot built with LangGraph, leveraging Groq for LLM inference, FAISS for vector storage, and LangSmith for observability.
+A Streamlit-based application that builds stateful AI graphs using LangGraph. The application leverages Groq as its LLM and Tavily for web search capabilities.
 
-## Features
+## ✨ Features and Use Cases
 
-- **Multi-Agent Architecture**: Uses a research team workflow with a manager and two researchers.
-- **LangChain Integration**: Built on top of the LangChain ecosystem.
-- **RAG Support**: Integrated with FAISS vector store for retrieval-augmented generation.
-- **Real-Time Search**: Powered by the Tavily API for up-to-date information.
-- **LangSmith Observability**: Track all agent runs, graphs, and tools in the LangSmith dashboard.
-- **Web Interface**: A simple Streamlit UI to interact with the chatbot.
+The application currently implements three distinct workflows, configurable via the UI:
+
+1. **Basic Chatbot**: A simple single-node graph that directly invokes a Groq LLM with the user's messages.
+2. **Chatbot With Web**: An advanced graph that binds the Tavily Search tool to the Groq LLM. It uses LangGraph's conditional edges (`tools_condition`) to route requests to a `ToolNode` when the LLM decides to search the web, allowing it to answer questions using real-time information.
+3. **AI News**: A sequential 3-node graph (`fetch_news` -> `summarize_news` -> `save_result`) that fetches AI technology news using Tavily, summarizes the articles into Markdown format using a Groq LLM, and writes the results to an `AINews/` directory.
 
 ## 🛠️ Tech Stack
 
-- **Orchestration**: [LangGraph](https://langchain.com/langgraph)
-- **LLM**: [Groq](https://groq.com)
-- **Vector Store**: [FAISS](https://faiss.ai)
-- **Search**: [Tavily API](https://tavily.com)
-- **UI**: [Streamlit](https://streamlit.io)
-- **Observability**: [LangSmith](https://smith.langchain.com)
+- **Orchestration**: `langgraph` (StateGraph, ToolNode, tools_condition)
+- **LLM**: `langchain_groq` (ChatGroq)
+- **Search**: `tavily-python` (TavilyClient) and `langchain_community.tools.tavily_search` (TavilySearchResults)
+- **UI**: `streamlit`
 
 ## 🚀 Getting Started
 
 ### Prerequisites
 
-- Python 3.9+
+- Python environment
 - API Keys:
   - `GROQ_API_KEY`
   - `TAVILY_API_KEY`
-  - `LANGSMITH_API_KEY`
 
 ### Installation
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
-cd Section20-AgenticChatbot
+git clone https://github.com/the-huangyaoshi/AgenticChatbot.git
+cd AgenticChatbot
 ```
 
 2. Create and activate a virtual environment:
 ```bash
 python -m venv .venv
+# On Windows:
 .\.venv\Scripts\activate
+# On Mac/Linux:
+source .venv/bin/activate
 ```
 
 3. Install dependencies:
@@ -51,17 +50,9 @@ pip install -r requirements.txt
 
 ### Configuration
 
-Create a `.env` file in the root directory with your API keys:
-```env
-OPENAI_API_KEY=your-openai-key
-GROQ_API_KEY=your-groq-key
-TAVILY_API_KEY=your-tavily-key
-LANGSMITH_API_KEY=your-langsmith-key
-LANGSMITH_TRACING=true
-LANGSMITH_PROJECT=agentic-chatbot
-```
+You can provide your API keys directly in the Streamlit UI sidebar, or configure them via environment variables.
 
-## ▶️ Running the App
+## ▶️ Running the App Locally
 
 Start the Streamlit application:
 
@@ -69,60 +60,73 @@ Start the Streamlit application:
 streamlit run app.py
 ```
 
-The application will open in your browser (usually at `http://localhost:8501`).
-
 ## 🏗️ Project Structure
+
+The project is structured into the following modules:
 
 ```
 Section20-AgenticChatbot/
+├── app.py                              # Entry point that runs load_langgraph_agenticai_app()
+├── AINews/                             # Directory where AI News markdown summaries are saved
 ├── src/
 │   └── langgraphagenticai/
-│       ├── config/
-│       │   └── settings.py         # Application settings
+│       ├── main.py                     # Orchestrates UI loading, LLM setup, and Graph execution
+│       ├── graph/
+│       │   └── graph_builder.py        # Contains GraphBuilder which constructs StateGraph for the 3 use cases
+│       ├── LLMS/
+│       │   └── groqllm.py              # Initializes ChatGroq with the provided API key and model
+│       ├── nodes/
+│       │   ├── ai_news_node.py         # Defines AINewsNode (fetch_news, summarize_news, save_result)
+│       │   ├── basic_chatbot_node.py   # Defines BasicChatbotNode (invokes LLM)
+│       │   └── chatbot_with_Tool_node.py # Defines ChatbotWithToolNode (binds Tavily tool to LLM)
+│       ├── state/
+│       │   └── state.py                # Defines the TypedDict State containing 'messages'
 │       ├── tools/
-│       │   ├── research_tools.py     # Tavily search tools
-│       │   └── database_tools.py     # FAISS database operations
-│       ├── agents/
-│       │   ├── research_agents.py    # Researcher and Manager agents
-│       │   └── research_graph.py     # LangGraph state and workflow
-│       └── main.py                 # Main app entry point
-├── data/                             # Vector store files
-├── .env                              # Environment variables
-├── requirements.txt                  # Project dependencies
-└── app.py                            # Streamlit UI
+│       │   └── search_tool.py          # Configures TavilySearchResults tool and creates ToolNode
+│       └── ui/
+│           ├── streamlitui/
+│           │   ├── display_result.py   # Handles displaying graph.stream() and graph.invoke() outputs in Streamlit
+│           │   └── loadui.py           # Configures the Streamlit sidebar, inputs, and session state
+│           ├── uiconfigfile.ini        # Defines page title, LLM options, and Use Case options
+│           └── uiconfigfile.py         # Parses uiconfigfile.ini using ConfigParser
 ```
 
-## 📝 Workflow
+## 🌐 Deployment on Hugging Face Spaces
 
-1. **User Query**: The user asks a question via the Streamlit UI.
-2. **Manager Agent**: The Manager agent receives the query and decides if it needs external research or database lookup.
-3. **Researcher Agents**: 
-   - If research is needed, one researcher searches the web using Tavily.
-   - If domain knowledge is needed, another researcher queries the FAISS database.
-4. **Synthesis**: The Manager agent combines the results and generates a final answer.
-5. **Observability**: Every step is logged to LangSmith, allowing you to trace the execution flow and debug issues.
+To deploy this Streamlit application to Hugging Face Spaces:
 
-## 🔍 LangSmith Observability
+1. **Create a New Space**: Go to Hugging Face Spaces, create a new Space, and select **Streamlit** as the SDK.
+2. **Upload Files**: Upload the entire repository (including `app.py`, `requirements.txt`, and the `src/` folder), but exclude `.venv` and `__pycache__`.
+3. **Configure Secrets**: Go to your Space's Settings > Variables and secrets, and add `GROQ_API_KEY` and `TAVILY_API_KEY`.
+4. **Launch**: Hugging Face will automatically install the dependencies in `requirements.txt` and run `app.py`.
 
-To view the traces, visit [smith.langchain.com](https://smith.langchain.com). You should see a new project named `agentic-chatbot` (or as configured in `.env`).
+## ☁️ Deployment on Google Cloud Platform (GCP)
 
-You can inspect:
-- **Graph Runs**: Visual representation of the workflow.
-- **Agent States**: See inputs and outputs of each agent.
-- **Tools**: Track which tools were called and their results.
-- **Latency**: Monitor the response time of each step.
+To deploy this application to GCP, the easiest and most cost-effective method is **Google Cloud Run**. A `Dockerfile` is already included in this repository.
 
-## 🗄️ Data & RAG
+1. **Install and authenticate with Google Cloud SDK**:
+   - Install the [gcloud CLI](https://cloud.google.com/sdk/docs/install).
+   - Run `gcloud auth login` and `gcloud config set project [YOUR_PROJECT_ID]`.
 
-The system uses a FAISS index for RAG. You can pre-populate it by running:
-```bash
-python src/langgraphagenticai/tools/database_tools.py --embed
-```
-This will embed documents in the `data` folder and create the FAISS index.
+2. **Enable Required APIs**:
+   Ensure Cloud Build and Cloud Run are enabled in your project:
+   ```bash
+   gcloud services enable cloudbuild.googleapis.com run.googleapis.com
+   ```
 
-## 🧩 Extending the System
+3. **Deploy to Cloud Run**:
+   Run the following command from the root of this repository (where the `Dockerfile` is located):
+   ```bash
+   gcloud run deploy agentic-chatbot --source . --region us-central1 --allow-unauthenticated --port 8501
+   ```
+   *(Note: You can change the `--region` to one closest to you.)*
 
-- **Add New Tools**: Create a new file in `src/langgraphagenticai/tools/` and register it in `ResearchAgents`.
-- **Modify Agents**: Edit the prompts and configurations in `src/langgraphagenticai/agents/research_agents.py`.
-- **Change LLM**: Update `src/langgraphagenticai/config/settings.py` to use a different model.
-- **New Workflow**: Define a new graph in `src/langgraphagenticai/agents/` and update `main.py` to expose it.
+4. **Configure Secrets**:
+   Once deployed, go to the **Cloud Run** console in GCP:
+   - Select your service (`agentic-chatbot`).
+   - Click **Edit & Deploy New Revision**.
+   - Under the **Variables & Secrets** tab, add `GROQ_API_KEY` and `TAVILY_API_KEY` as environment variables.
+   - Click **Deploy** to apply the keys.
+
+5. **Launch**:
+   Once the deployment is complete, `gcloud` will provide a secure HTTPS URL where your Streamlit app is hosted!
